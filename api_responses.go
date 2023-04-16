@@ -1,7 +1,6 @@
 package goplurk
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 )
@@ -15,37 +14,24 @@ func (u *APIResponses) Get(plurkId int64, fromResoponse int64, count int64) (*Re
 	body["plurk_id"] = strconv.FormatInt(plurkId, 10)
 	body["from_response"] = strconv.FormatInt(fromResoponse, 10)
 	body["count"] = strconv.FormatInt(count, 10)
-	res, err := u.client.Engine.CallAPI("/APP/Responses/get", body)
-	if err != nil {
+	responses := &Responses{}
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Responses/get", body, responses); err != nil {
 		return nil, err
+	} else {
+		return responses, nil
 	}
-	responses := Responses{}
-	if err := json.Unmarshal(res, &responses); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal responses: %v, %s", err, string(res))
-	}
-
-	return &responses, nil
 }
 func (u *APIResponses) ResponseAdd(plurkId int64, qualifier string, content string) (*Response, error) {
-	if qualifier == "" {
-		qualifier = ":"
-	}
-	if content == "" {
-		return nil, fmt.Errorf("content can not be empty")
-	}
 	var body = map[string]string{}
 	body["plurk_id"] = strconv.FormatInt(plurkId, 10)
 	body["qualifier"] = qualifier
 	body["content"] = content
-	res, err := u.client.Engine.CallAPI("/APP/Responses/responseAdd", body)
-	if err != nil {
+	response := &Response{}
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Responses/responseAdd", body, response); err != nil {
 		return nil, err
+	} else {
+		return response, nil
 	}
-	response := Response{}
-	if err := json.Unmarshal(res, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v, %s", err, string(res))
-	}
-	return &response, nil
 }
 
 func (u *APIResponses) ResponseDelete(responseId int64, plurkId int64) error {
@@ -55,7 +41,7 @@ func (u *APIResponses) ResponseDelete(responseId int64, plurkId int64) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete response: %v", err)
+	} else {
+		return nil
 	}
-	return nil
-
 }

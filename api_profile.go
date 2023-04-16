@@ -1,7 +1,6 @@
 package goplurk
 
 import (
-	"encoding/json"
 	"strconv"
 )
 
@@ -10,26 +9,21 @@ type APIProfile struct {
 }
 
 func (u *APIProfile) GetOwnProfile() (*Profile, error) {
-	resBytes, err := u.client.Engine.CallAPI("/APP/Profile/getOwnProfile", map[string]string{})
-	if err != nil {
+	res := &Profile{}
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Profile/getOwnProfile", map[string]string{}, res); err != nil {
 		return nil, err
+	} else {
+		return res, nil
 	}
-	var userDate = &Profile{}
-	if err := json.Unmarshal(resBytes, userDate); err != nil {
-		return nil, err
-	}
-	return userDate, nil
 }
 func (u *APIProfile) GetPublicProfile(userId int64) (*Profile, error) {
-	resBytes, err := u.client.Engine.CallAPI("/APP/Profile/getPublicProfile", map[string]string{
+	body := map[string]string{
 		"user_id": strconv.FormatInt(userId, 10),
-	})
-	if err != nil {
-		return nil, err
 	}
-	var userDate = &Profile{}
-	if err := json.Unmarshal(resBytes, userDate); err != nil {
+	res := &Profile{}
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Profile/getPublicProfile", body, res); err != nil {
 		return nil, err
+	} else {
+		return res, nil
 	}
-	return userDate, nil
 }

@@ -1,7 +1,6 @@
 package goplurk
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -66,27 +65,19 @@ func (u *APITimeline) getPlurks(_api string, optionSets []Options) (*Plurks, err
 }
 
 func (u *APITimeline) PlurkAdd(qualifier string, content string, optionSets ...Options) (*Plurk, error) {
-	if qualifier == "" {
-		qualifier = ":"
+	var body = map[string]string{
+		"qualifier": qualifier,
+		"content":   content,
 	}
-	if content == "" {
-		return nil, fmt.Errorf("content can not be empty")
-	}
-	var body = map[string]string{}
-	body["qualifier"] = qualifier
-	body["content"] = content
 	for _, optionSet := range optionSets {
 		maps.Copy(body, optionSet.Get())
 	}
-	res, err := u.client.Engine.CallAPI("/APP/Timeline/plurkAdd", body)
-	if err != nil {
+	plurk := &Plurk{}
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Timeline/plurkAdd", body, plurk); err != nil {
 		return nil, err
+	} else {
+		return plurk, nil
 	}
-	plurk := Plurk{}
-	if err := json.Unmarshal(res, &plurk); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v, %s", err, string(res))
-	}
-	return &plurk, nil
 }
 
 func (u *APITimeline) PlurkDelete(plurkId int64) error {
@@ -130,8 +121,8 @@ func (u *APITimeline) MarkAsRead(plurkIds []int64) error {
 func (u *APITimeline) opPlurk(_url string, plurkIds []int64) error {
 	if len(plurkIds) != 0 {
 		plurkIdStrs := []string{}
-		for _, limited := range plurkIds {
-			plurkIdStrs = append(plurkIdStrs, strconv.FormatInt(limited, 10))
+		for _, plurkId := range plurkIds {
+			plurkIdStrs = append(plurkIdStrs, strconv.FormatInt(plurkId, 10))
 		}
 		_, err := u.client.Engine.CallAPI(_url, map[string]string{
 			"ids": "[" + strings.Join(plurkIdStrs, ",") + "]",
