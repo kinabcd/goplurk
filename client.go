@@ -26,6 +26,7 @@ type Client struct {
 	Responses *APIResponses
 	Profile   *APIProfile
 	Polling   *APIPolling
+	Realtime  *APIRealtime
 	Engine    Engine
 }
 
@@ -51,6 +52,7 @@ func newClient(oauthClient *oauth.Client, credentials *oauth.Credentials) *Clien
 	client.Responses = &APIResponses{client: client}
 	client.Profile = &APIProfile{client: client}
 	client.Polling = &APIPolling{client: client}
+	client.Realtime = &APIRealtime{client: client}
 	return client
 }
 

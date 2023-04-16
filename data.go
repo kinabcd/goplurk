@@ -75,7 +75,7 @@ type Response struct {
 	Content             string  `json:"content"`
 	ContentRaw          string  `json:"content_raw"`
 	Qualifier           string  `json:"qualifier"`
-	QualifierTranslated string  `json:"qualifier_translated"`
+	QualifierTranslated *string `json:"qualifier_translated"`
 	Posted              string  `json:"posted"`
 	Lang                string  `json:"lang"`
 	LastEdited          *string `json:"last_edited"`
@@ -121,4 +121,20 @@ type PlurkCountsInfo struct {
 	ResponseCount  int64 `json:"response_count"`
 	FavoriteCount  int64 `json:"favorite_count"`
 	ReplurkerCount int64 `json:"replurkers_count"`
+}
+
+type UserChannel struct {
+	ChannelName string `json:"channel_name"`
+	CometServer string `json:"comet_server"`
+}
+
+type NewPlurkEvent struct {
+	Plurk
+}
+type NewResponseEvent struct {
+	PlurkId       int64    `json:"plurk_id"`
+	Plurk         Plurk    `json:"plurk"`
+	ResponseCount int64    `json:"response_count"`
+	Response      Response `json:"response"`
+	User          map[string]User
 }
