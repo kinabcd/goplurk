@@ -14,19 +14,55 @@ type APITimeline struct {
 }
 
 func (u *APITimeline) GetPlurk(plurkId int64) (*Plurk, error) {
-	resBytes, err := u.client.Engine.CallAPI("/APP/Timeline/getPlurk", map[string]string{
-		"plurk_id": strconv.FormatInt(plurkId, 10),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get plurk: %v", err)
-	}
-	plurk := struct {
-		Plurk Plurk `json:"plurk"`
+	res := &struct {
+		Plurk *Plurk `json:"plurk"`
 	}{}
-	if err := json.Unmarshal(resBytes, &plurk); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal plurk: %v, %s", err, string(resBytes))
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Timeline/getPlurk", map[string]string{
+		"plurk_id": strconv.FormatInt(plurkId, 10),
+	}, res); err != nil {
+		return nil, err
 	}
-	return &plurk.Plurk, nil
+	return res.Plurk, nil
+}
+
+func (u *APITimeline) GetPlurkCountsInfo(plurkId int64) (*PlurkCountsInfo, error) {
+	res := &PlurkCountsInfo{}
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Timeline/getPlurkCountsInfo", map[string]string{
+		"plurk_id": strconv.FormatInt(plurkId, 10),
+	}, res); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// Return plurks older than offset
+// see GetPlurksOptions
+func (u *APITimeline) GetPlurks(optionSets ...Options) (*Plurks, error) {
+	return u.getPlurks("/APP/Timeline/getPlurks", optionSets)
+}
+
+// Return unread plurks older than offset
+// see GetPlurksOptions
+func (u *APITimeline) GetUnreadPlurks(optionSets ...Options) (*Plurks, error) {
+	return u.getPlurks("/APP/Timeline/getUnreadPlurks", optionSets)
+}
+
+// Return public plurks older than offset
+// see GetPlurksOptions
+func (u *APITimeline) GetPublicPlurks(optionSets ...Options) (*Plurks, error) {
+	return u.getPlurks("/APP/Timeline/getPublicPlurks", optionSets)
+}
+
+func (u *APITimeline) getPlurks(_api string, optionSets []Options) (*Plurks, error) {
+	body := map[string]string{}
+	for _, optionSet := range optionSets {
+		maps.Copy(body, optionSet.Get())
+	}
+	plurks := &Plurks{}
+	if err := u.client.Engine.CallAPIUnmarshal(_api, body, plurks); err != nil {
+		return nil, err
+	}
+	return plurks, nil
 }
 
 func (u *APITimeline) PlurkAdd(qualifier string, content string, optionSets ...Options) (*Plurk, error) {

@@ -26,8 +26,8 @@ type User struct {
 	VerifiedAccount   bool     `json:"verified_account"`
 	FriendListPrivacy string   `json:"friend_list_privacy"`
 	EmailConfirmed    bool     `json:"email_confirmed"`
-	PhoneVerified     *string  `json:"phone_verified"`
-	PinnedPlurkId     *string  `json:"pinned_plurk_id"`
+	PhoneVerified     *int64   `json:"phone_verified"`
+	PinnedPlurkId     *int64   `json:"pinned_plurk_id"`
 	BackgroundId      int64    `json:"background_id"`
 	ShowAds           bool     `json:"show_ads"`
 }
@@ -64,8 +64,8 @@ type Plurk struct {
 }
 
 type Plurks struct {
-	Plurks     []Plurk `json:"plurks"`
-	PlurkUsers []User  `json:"plurk_users"`
+	Plurks     []Plurk         `json:"plurks"`
+	PlurkUsers map[string]User `json:"plurk_users"`
 }
 
 type Response struct {
@@ -108,4 +108,17 @@ type Profile struct {
 	IsFan             *bool `json:"is_fan"`
 	IsFollowing       *bool `json:"is_following"`
 	HasReadPermission *bool `json:"has_read_permission"`
+}
+
+type UnreadCount struct {
+	All       int64 `json:"all"`
+	My        int64 `json:"my"`
+	Private   int64 `json:"private"`
+	Responsed int64 `json:"responded"`
+}
+
+type PlurkCountsInfo struct {
+	ResponseCount  int64 `json:"response_count"`
+	FavoriteCount  int64 `json:"favorite_count"`
+	ReplurkerCount int64 `json:"replurkers_count"`
 }

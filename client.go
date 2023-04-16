@@ -1,6 +1,7 @@
 package goplurk
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ var baseURL = "https://www.plurk.com"
 
 type Engine interface {
 	CallAPI(_url string, opt map[string]string) ([]byte, error)
+	CallAPIUnmarshal(_url string, opt map[string]string, v any) error
 }
 type EngineImpl struct {
 	oauthClient *oauth.Client
@@ -23,6 +25,7 @@ type Client struct {
 	Timeline  *APITimeline
 	Responses *APIResponses
 	Profile   *APIProfile
+	Polling   *APIPolling
 	Engine    Engine
 }
 
@@ -47,6 +50,7 @@ func newClient(oauthClient *oauth.Client, credentials *oauth.Credentials) *Clien
 	client.Timeline = &APITimeline{client: client}
 	client.Responses = &APIResponses{client: client}
 	client.Profile = &APIProfile{client: client}
+	client.Polling = &APIPolling{client: client}
 	return client
 }
 
@@ -82,6 +86,15 @@ func (c *EngineImpl) CallAPI(_url string, opt map[string]string) ([]byte, error)
 		return nil, fmt.Errorf("%s", string(body))
 	}
 	return body, nil
+}
+func (c *EngineImpl) CallAPIUnmarshal(_url string, opt map[string]string, v any) error {
+	if bytes, err := c.CallAPI(_url, opt); err != nil {
+		return err
+	} else if err := json.Unmarshal(bytes, v); err != nil {
+		return fmt.Errorf("failed to unmarshal: %v, %s", err, string(bytes))
+	} else {
+		return nil
+	}
 }
 
 type OAuthRequest struct {
