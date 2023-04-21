@@ -33,6 +33,8 @@ func main() {
 			fmt.Printf("(%d) Response %s %s\n", e.PlurkId, e.Response.Qualifier, strings.ReplaceAll(e.Response.ContentRaw, "\n", ""))
 		} else if e, ok := event.(*goplurk.NewPlurkEvent); ok {
 			fmt.Printf("(%d) Plurk %s %s\n", e.PlurkId, e.Plurk.Qualifier, strings.ReplaceAll(e.Plurk.ContentRaw, "\n", ""))
+		} else if e, ok := event.(*goplurk.UpdateNotificationEvent); ok {
+			fmt.Printf("Notification Noti=%d, Req=%d\n", e.Counts.Noti, e.Counts.Req)
 		} else if e, ok := event.(*goplurk.RealtimeLogEvent); ok {
 			if e.Err != nil {
 				fmt.Printf("(EE) %v\n", e.Err)

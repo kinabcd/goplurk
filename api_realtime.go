@@ -68,7 +68,6 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 			q := serverUrl.Query()
 			q.Set("offset", strconv.FormatInt(offset, 10))
 			serverUrl.RawQuery = q.Encode()
-			callback(newRealtimeLogEvent(fmt.Sprintf("getUrl %s", serverUrl.String())))
 			body, err := getUrl(serverUrl)
 			if err != nil {
 				callback(&RealtimeLogEvent{Err: err})
@@ -81,6 +80,9 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 				callback(&RealtimeLogEvent{Err: err})
 				time.Sleep(5 * time.Second)
 				continue
+			}
+			if offset != newComet.NewOffset {
+				callback(newRealtimeLogEvent(fmt.Sprintf("offset %d", newComet.NewOffset)))
 			}
 			offset = newComet.NewOffset
 			if offset == -3 {
@@ -138,6 +140,12 @@ func resolveEvent(bytes json.RawMessage) (interface{}, error) {
 
 	case "new_plurk":
 		res := &NewPlurkEvent{}
+		if err := json.Unmarshal(bytes, res); err != nil {
+			return nil, err
+		}
+		return res, nil
+	case "update_notification":
+		res := &UpdateNotificationEvent{}
 		if err := json.Unmarshal(bytes, res); err != nil {
 			return nil, err
 		}

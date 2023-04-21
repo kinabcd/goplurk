@@ -138,3 +138,11 @@ type NewResponseEvent struct {
 	Response      Response `json:"response"`
 	User          map[string]User
 }
+
+// {"counts": {"noti": 1, "req": 0}, "type": "update_notification"}
+type UpdateNotificationEvent struct {
+	Counts struct {
+		Noti int64 `json:"noti"`
+		Req  int64 `json:"req"`
+	} `json:"counts"`
+}
