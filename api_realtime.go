@@ -40,6 +40,9 @@ func (u *APIRealtime) GetUserChannel() (*UserChannel, error) {
 	}
 }
 func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
 	var channel *UserChannel = nil
 	var offset int64 = 0
 	for {
@@ -68,7 +71,7 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 			q := serverUrl.Query()
 			q.Set("offset", strconv.FormatInt(offset, 10))
 			serverUrl.RawQuery = q.Encode()
-			body, err := getUrl(serverUrl)
+			body, err := getUrl(client, serverUrl)
 			if err != nil {
 				callback(&RealtimeLogEvent{Err: err})
 				time.Sleep(5 * time.Second)
@@ -83,6 +86,11 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 			}
 			if offset != newComet.NewOffset {
 				callback(newRealtimeLogEvent(fmt.Sprintf("offset %d", newComet.NewOffset)))
+			} else {
+				// workaround.
+				// Channel sometimes closes without any notification.
+				// Call this API to activate it.
+				u.GetUserChannel()
 			}
 			offset = newComet.NewOffset
 			if offset == -3 {
@@ -101,8 +109,8 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 	}
 }
 
-func getUrl(_url *url.URL) ([]byte, error) {
-	res, err := http.Get(_url.String())
+func getUrl(client *http.Client, _url *url.URL) ([]byte, error) {
+	res, err := client.Get(_url.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get: %s, %v", _url.String(), err)
 	}
