@@ -17,13 +17,26 @@ type comet struct {
 	Data      []json.RawMessage `json:"data"`
 }
 
-type RealtimeLogEvent struct {
-	Log *string
-	Err error
+type RealtimeEventHandler func(eventType string, btyes json.RawMessage) error
+
+type UserChannelListener struct {
+	LogHandler    func(log string, err error)
+	EventHandlers []RealtimeEventHandler
 }
 
-func newRealtimeLogEvent(s string) *RealtimeLogEvent {
-	return &RealtimeLogEvent{Log: &s}
+func (l *UserChannelListener) Log(s string) {
+	if l.LogHandler != nil {
+		l.LogHandler(s, nil)
+	}
+}
+
+func (l *UserChannelListener) Err(s error) {
+	if l.LogHandler != nil {
+		l.LogHandler("", s)
+	}
+}
+func (l *UserChannelListener) AddHandler(h RealtimeEventHandler) {
+	l.EventHandlers = append(l.EventHandlers, h)
 }
 
 type APIRealtime struct {
@@ -39,7 +52,10 @@ func (u *APIRealtime) GetUserChannel() (*UserChannel, error) {
 		return res, nil
 	}
 }
-func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
+func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener) {
+	if listener == nil {
+		return
+	}
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
@@ -53,18 +69,17 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 			if channel == nil {
 				newChannel, err := u.GetUserChannel()
 				if err != nil {
-					callback(&RealtimeLogEvent{Err: err})
+					listener.Err(err)
 					time.Sleep(5 * time.Second)
 					continue
 				}
 				channel = newChannel
 				offset = 0
-				callback(newRealtimeLogEvent(fmt.Sprintf("newChannel %s", newChannel.CometServer)))
-
+				listener.Log(fmt.Sprintf("newChannel %s", newChannel.CometServer))
 			}
 			serverUrl, err := url.Parse(channel.CometServer)
 			if err != nil {
-				callback(&RealtimeLogEvent{Err: err})
+				listener.Err(err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -73,19 +88,19 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 			serverUrl.RawQuery = q.Encode()
 			body, err := getUrl(client, serverUrl)
 			if err != nil {
-				callback(&RealtimeLogEvent{Err: err})
+				listener.Err(err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 
 			newComet, err := resolveComet(body)
 			if err != nil {
-				callback(&RealtimeLogEvent{Err: err})
+				listener.Err(err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 			if offset != newComet.NewOffset {
-				callback(newRealtimeLogEvent(fmt.Sprintf("offset %d", newComet.NewOffset)))
+				listener.Log(fmt.Sprintf("offset %d", newComet.NewOffset))
 			} else {
 				// workaround.
 				// Channel sometimes closes without any notification.
@@ -99,11 +114,7 @@ func (u *APIRealtime) Listen(ctx context.Context, callback func(interface{})) {
 				continue
 			}
 			for _, rawEvent := range newComet.Data {
-				if event, err := resolveEvent(rawEvent); err != nil {
-					callback(&RealtimeLogEvent{Err: err})
-				} else {
-					callback(event)
-				}
+				resolveEvent(rawEvent, listener)
 			}
 		}
 	}
@@ -131,34 +142,44 @@ func resolveComet(bytes []byte) (*comet, error) {
 	return res, nil
 }
 
-func resolveEvent(bytes json.RawMessage) (interface{}, error) {
+func resolveEvent(bytes json.RawMessage, listener *UserChannelListener) {
+	if listener == nil {
+		return
+	}
 	pass1 := &struct {
 		Type string `json:"type"`
 	}{}
 	if err := json.Unmarshal(bytes, pass1); err != nil {
-		return nil, err
+		listener.Err(err)
 	}
-	switch pass1.Type {
-	case "new_response":
-		res := &NewResponseEvent{}
-		if err := json.Unmarshal(bytes, res); err != nil {
-			return nil, err
+	if listener.EventHandlers != nil {
+		for _, handler := range listener.EventHandlers {
+			if err := handler(pass1.Type, bytes); err != nil {
+				listener.Err(err)
+			}
 		}
-		return res, nil
+	}
+}
 
-	case "new_plurk":
-		res := &NewPlurkEvent{}
-		if err := json.Unmarshal(bytes, res); err != nil {
-			return nil, err
+func NewResponseHandler(handler func(*NewResponseEvent)) RealtimeEventHandler {
+	return standardRealtimeEventHandler("new_response", handler)
+}
+func NewPlurkHandler(handler func(*NewPlurkEvent)) RealtimeEventHandler {
+	return standardRealtimeEventHandler("new_plurk", handler)
+}
+func UpdateNotificationHandler(handler func(*UpdateNotificationEvent)) RealtimeEventHandler {
+	return standardRealtimeEventHandler("update_notification", handler)
+}
+
+func standardRealtimeEventHandler[T any](eventType string, handler func(*T)) RealtimeEventHandler {
+	return func(inEventType string, bytes json.RawMessage) error {
+		if inEventType == eventType {
+			res := new(T)
+			if err := json.Unmarshal(bytes, res); err != nil {
+				return err
+			}
+			handler(res)
 		}
-		return res, nil
-	case "update_notification":
-		res := &UpdateNotificationEvent{}
-		if err := json.Unmarshal(bytes, res); err != nil {
-			return nil, err
-		}
-		return res, nil
-	default:
-		return nil, fmt.Errorf("not handled event: %s", string(bytes))
+		return nil
 	}
 }
