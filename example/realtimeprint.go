@@ -38,6 +38,14 @@ func main() {
 	}))
 	listener.AddHandler(goplurk.UpdateNotificationHandler(func(e *goplurk.UpdateNotificationEvent) {
 		fmt.Printf("Notification Noti=%d, Req=%d\n", e.Counts.Noti, e.Counts.Req)
+		// Auto accept friendship request
+		if alerts, err := client.Alerts.GetActive(); err == nil {
+			for _, e := range alerts {
+				if e, ok := e.(*goplurk.AlertsFriendshipRequestEvent); ok {
+					client.Alerts.AddAsFriend(e.FromUser.Id)
+				}
+			}
+		}
 	}))
 	listener.AddHandler(func(eType string, bytes json.RawMessage) error {
 		if eType != "new_response" && eType != "new_plurk" && eType != "update_notification" {

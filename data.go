@@ -1,5 +1,7 @@
 package goplurk
 
+import "encoding/json"
+
 type User struct {
 	Id                int64    `json:"id"`
 	NickName          string   `json:"nick_name"`
@@ -30,6 +32,7 @@ type User struct {
 	PinnedPlurkId     *int64   `json:"pinned_plurk_id"`
 	BackgroundId      int64    `json:"background_id"`
 	ShowAds           bool     `json:"show_ads"`
+	Version           string   `json:"_version"`
 }
 
 type Birthday struct {
@@ -128,9 +131,12 @@ type UserChannel struct {
 	CometServer string `json:"comet_server"`
 }
 
+// Realtime event "new_plurk"
 type NewPlurkEvent struct {
 	Plurk
 }
+
+// Realtime event "new_response"
 type NewResponseEvent struct {
 	PlurkId       int64    `json:"plurk_id"`
 	Plurk         Plurk    `json:"plurk"`
@@ -139,10 +145,92 @@ type NewResponseEvent struct {
 	User          map[string]User
 }
 
+// Realtime event "update_notification"
 // {"counts": {"noti": 1, "req": 0}, "type": "update_notification"}
 type UpdateNotificationEvent struct {
 	Counts struct {
 		Noti int64 `json:"noti"`
 		Req  int64 `json:"req"`
 	} `json:"counts"`
+}
+
+type AlertsEvent struct {
+	Type   string `json:"type"`
+	Posted string `json:"posted"`
+}
+
+type AlertsUnhandledEvent struct {
+	AlertsEvent
+	RawMessage json.RawMessage
+}
+
+// requires action from the user
+type AlertsFriendshipRequestEvent struct {
+	AlertsEvent
+	FromUser User `json:"from_user"`
+}
+
+// requires action from the user
+type AlertsFriendshipPendingEvent struct {
+	AlertsEvent
+	FromUser User `json:"to_user"`
+}
+
+type AlertsNewFanEvent struct {
+	AlertsEvent
+	NewFan User `json:"new_fan"`
+}
+
+// Friendship accepted notification
+type AlertsFriendshipAcceptedEvent struct {
+	AlertsEvent
+	FriendInfo User `json:"friend_info"`
+}
+
+// New friend notification
+type AlertsNewFriendEvent struct {
+	AlertsEvent
+	NewFriend User `json:"new_friend"`
+}
+
+// New private plurk
+type AlertsPrivatePlurkEvent struct {
+	AlertsEvent
+	Owner   User  `json:"owner"`
+	PlurkId int64 `json:"plurk_id"`
+}
+
+// User's plurk got liked
+type AlertsPlurkLikedEvent struct {
+	AlertsEvent
+	FromUser  User  `json:"from_user"`
+	PlurkId   int64 `json:"plurk_id"`
+	NumOthers int64 `json:"num_others"`
+}
+
+// User's plurk got replurked
+type AlertsPlurkReplurkedEvent struct {
+	AlertsEvent
+	FromUser  User  `json:"from_user"`
+	PlurkId   int64 `json:"plurk_id"`
+	NumOthers int64 `json:"num_others"`
+}
+
+// User got mentioned in a plurk
+type AlertsMentionedEvent struct {
+	AlertsEvent
+	FromUser  User  `json:"from_user"`
+	PlurkId   int64 `json:"plurk_id"`
+	NumOthers int64 `json:"num_others"`
+	// response_id may be null if user was mentioned in the plurk and not in a response.
+	ResponseId *int64 `json:"response_id"`
+}
+
+// User's own plurk got responded
+type AlertsMyRespondedEvent struct {
+	AlertsEvent
+	FromUser   User  `json:"from_user"`
+	PlurkId    int64 `json:"plurk_id"`
+	NumOthers  int64 `json:"num_others"`
+	ResponseId int64 `json:"response_id"`
 }
