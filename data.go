@@ -1,6 +1,9 @@
 package goplurk
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 type User struct {
 	Id                int64    `json:"id"`
@@ -39,6 +42,17 @@ type Birthday struct {
 	Year  int64 `json:"year"`
 	Month int64 `json:"month"`
 	Day   int64 `json:"day"`
+}
+type KarmaTrendNode struct {
+	Time  time.Time
+	Karma float64
+}
+type KarmaStates struct {
+	CurrentKarma    float64  `json:"current_karma"`
+	KarmaFallReason string   `json:"karma_fall_reason"`
+	KarmaGraph      string   `json:"karma_graph"`
+	KarmaTrendRaw   []string `json:"karma_trend"`
+	KarmaTrend      []KarmaTrendNode
 }
 
 type Plurk struct {
