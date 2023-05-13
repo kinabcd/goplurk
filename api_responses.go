@@ -21,6 +21,20 @@ func (u *APIResponses) Get(plurkId int64, fromResoponse int64, count int64) (*Re
 		return responses, nil
 	}
 }
+
+func (u *APIResponses) GetById(plurkId int64, fromResoponseId int64, count int64) (*Responses, error) {
+	var body = map[string]string{}
+	body["plurk_id"] = strconv.FormatInt(plurkId, 10)
+	body["from_response_id"] = strconv.FormatInt(fromResoponseId, 10)
+	body["count"] = strconv.FormatInt(count, 10)
+	responses := &Responses{}
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Responses/getById", body, responses); err != nil {
+		return nil, err
+	} else {
+		return responses, nil
+	}
+}
+
 func (u *APIResponses) ResponseAdd(plurkId int64, qualifier string, content string) (*Response, error) {
 	var body = map[string]string{}
 	body["plurk_id"] = strconv.FormatInt(plurkId, 10)
