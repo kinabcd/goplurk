@@ -61,16 +61,24 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 	}
 	var channel *UserChannel = nil
 	var offset int64 = 0
+	var waitForError = false
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
+			if waitForError {
+				waitForError = false
+				c, cancel := context.WithTimeout(ctx, 5*time.Second)
+				defer cancel()
+				<-c.Done()
+				continue
+			}
 			if channel == nil {
 				newChannel, err := u.GetUserChannel()
 				if err != nil {
 					listener.Err(err)
-					time.Sleep(5 * time.Second)
+					waitForError = true
 					continue
 				}
 				channel = newChannel
@@ -80,23 +88,23 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 			serverUrl, err := url.Parse(channel.CometServer)
 			if err != nil {
 				listener.Err(err)
-				time.Sleep(5 * time.Second)
+				waitForError = true
 				continue
 			}
 			q := serverUrl.Query()
 			q.Set("offset", strconv.FormatInt(offset, 10))
 			serverUrl.RawQuery = q.Encode()
-			body, err := getUrl(client, serverUrl)
+			body, err := getUrl(ctx, client, serverUrl)
 			if err != nil {
 				listener.Err(err)
-				time.Sleep(5 * time.Second)
+				waitForError = true
 				continue
 			}
 
 			newComet, err := resolveComet(body)
 			if err != nil {
 				listener.Err(err)
-				time.Sleep(5 * time.Second)
+				waitForError = true
 				continue
 			}
 			if offset != newComet.NewOffset {
@@ -120,8 +128,12 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 	}
 }
 
-func getUrl(client *http.Client, _url *url.URL) ([]byte, error) {
-	res, err := client.Get(_url.String())
+func getUrl(ctx context.Context, client *http.Client, _url *url.URL) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, _url.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %s, %v", _url.String(), err)
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get: %s, %v", _url.String(), err)
 	}
