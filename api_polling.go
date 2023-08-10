@@ -1,7 +1,7 @@
 package goplurk
 
 import (
-	"golang.org/x/exp/maps"
+	"maps"
 )
 
 type APIPolling struct {

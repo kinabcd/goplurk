@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/exp/maps"
+	"maps"
 )
 
 type APITimeline struct {
