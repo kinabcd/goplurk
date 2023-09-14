@@ -57,7 +57,7 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 		return
 	}
 	client := &http.Client{
-		Timeout: 60 * time.Second,
+		Timeout: 90 * time.Second,
 	}
 	var channel *UserChannel = nil
 	var offset int64 = 0
