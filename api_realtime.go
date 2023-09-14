@@ -3,10 +3,12 @@ package goplurk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -57,7 +59,7 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 		return
 	}
 	client := &http.Client{
-		Timeout: 90 * time.Second,
+		Timeout: 60 * time.Second,
 	}
 	var channel *UserChannel = nil
 	var offset int64 = 0
@@ -97,7 +99,9 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 			body, err := getUrl(ctx, client, serverUrl)
 			if err != nil {
 				listener.Err(err)
-				waitForError = true
+				if !os.IsTimeout(errors.Unwrap(err)) {
+					waitForError = true
+				}
 				continue
 			}
 
@@ -131,16 +135,16 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 func getUrl(ctx context.Context, client *http.Client, _url *url.URL) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, _url.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %s, %v", _url.String(), err)
+		return nil, fmt.Errorf("failed to create request: %s, %w", _url.String(), err)
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get: %s, %v", _url.String(), err)
+		return nil, fmt.Errorf("failed to get: %s, %w", _url.String(), err)
 	}
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get response: %v", err)
+		return nil, fmt.Errorf("failed to get response: %w", err)
 	}
 	return body, nil
 }
