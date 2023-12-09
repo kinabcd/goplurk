@@ -61,73 +61,76 @@ func (u *APIRealtime) Listen(ctx context.Context, listener *UserChannelListener)
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
+	listener.Log(fmt.Sprintf("Client.Timeout=%d", client.Timeout))
 	var channel *UserChannel = nil
 	var offset int64 = 0
 	var waitForError = false
+	var needNewChannel = true
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil { // done
 			return
-		default:
-			if waitForError {
-				waitForError = false
-				c, cancel := context.WithTimeout(ctx, 5*time.Second)
-				defer cancel()
-				<-c.Done()
+		}
+		if waitForError {
+			waitForError = false
+			c, cancel := context.WithTimeout(ctx, 5*time.Second)
+			<-c.Done()
+			cancel()
+			continue
+		}
+		if needNewChannel {
+			newChannel, err := u.GetUserChannel()
+			if err != nil {
+				listener.Err(err)
+				waitForError = true
 				continue
 			}
-			if channel == nil {
-				newChannel, err := u.GetUserChannel()
-				if err != nil {
-					listener.Err(err)
-					waitForError = true
-					continue
-				}
+			needNewChannel = false
+			if channel == nil || channel.CometServer != newChannel.CometServer {
 				channel = newChannel
 				offset = 0
-				listener.Log(fmt.Sprintf("newChannel %s", newChannel.CometServer))
+				listener.Log(fmt.Sprintf("Client.Channel=%s", newChannel.CometServer))
 			}
-			serverUrl, err := url.Parse(channel.CometServer)
-			if err != nil {
-				listener.Err(err)
+		}
+		serverUrl, err := url.Parse(channel.CometServer)
+		if err != nil {
+			listener.Err(err)
+			waitForError = true
+			continue
+		}
+		q := serverUrl.Query()
+		q.Set("offset", strconv.FormatInt(offset, 10))
+		serverUrl.RawQuery = q.Encode()
+		body, err := getUrl(ctx, client, serverUrl)
+		if err != nil {
+			listener.Err(err)
+			if !os.IsTimeout(errors.Unwrap(err)) {
 				waitForError = true
-				continue
 			}
-			q := serverUrl.Query()
-			q.Set("offset", strconv.FormatInt(offset, 10))
-			serverUrl.RawQuery = q.Encode()
-			body, err := getUrl(ctx, client, serverUrl)
-			if err != nil {
-				listener.Err(err)
-				if !os.IsTimeout(errors.Unwrap(err)) {
-					waitForError = true
-				}
-				continue
-			}
+			continue
+		}
 
-			newComet, err := resolveComet(body)
-			if err != nil {
-				listener.Err(err)
-				waitForError = true
-				continue
-			}
-			if offset != newComet.NewOffset {
-				listener.Log(fmt.Sprintf("offset %d", newComet.NewOffset))
-			} else {
-				// workaround.
-				// Channel sometimes closes without any notification.
-				// Call this API to activate it.
-				u.GetUserChannel()
-			}
-			offset = newComet.NewOffset
-			if offset == -3 {
-				// Your offset is wrong and you need to resync your data
-				channel = nil
-				continue
-			}
-			for _, rawEvent := range newComet.Data {
-				resolveEvent(rawEvent, listener)
-			}
+		newComet, err := resolveComet(body)
+		if err != nil {
+			listener.Err(err)
+			waitForError = true
+			continue
+		}
+		if offset != newComet.NewOffset {
+			listener.Log(fmt.Sprintf("Client.Offset=%d", newComet.NewOffset))
+		} else {
+			// workaround.
+			// Channel sometimes closes without any notification.
+			// Call GetUserChannel API to activate it.
+			needNewChannel = true
+		}
+		offset = newComet.NewOffset
+		if offset < 0 {
+			// Your offset is wrong and you need to resync your data
+			needNewChannel = true
+			continue
+		}
+		for _, rawEvent := range newComet.Data {
+			resolveEvent(rawEvent, listener)
 		}
 	}
 }
@@ -142,6 +145,9 @@ func getUrl(ctx context.Context, client *http.Client, _url *url.URL) ([]byte, er
 		return nil, fmt.Errorf("failed to get: %s, %w", _url.String(), err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode >= 300 {
+		return nil, fmt.Errorf("failed to get: wrong status %d %s", res.StatusCode, res.Status)
+	}
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response: %w", err)
