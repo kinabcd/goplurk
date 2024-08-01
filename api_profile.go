@@ -10,8 +10,11 @@ type APIProfile struct {
 
 // Returns data that's private for the current user. This can be used to construct a profile and render a timeline of the latest plurks.
 func (u *APIProfile) GetOwnProfile() (*Profile, error) {
+	body := map[string]string{
+		"include_plurks": "false",
+	}
 	res := &Profile{}
-	if err := u.client.Engine.CallAPIUnmarshal("/APP/Profile/getOwnProfile", map[string]string{}, res); err != nil {
+	if err := u.client.Engine.CallAPIUnmarshal("/APP/Profile/getOwnProfile", body, res); err != nil {
 		return nil, err
 	} else {
 		return res, nil
@@ -21,7 +24,9 @@ func (u *APIProfile) GetOwnProfile() (*Profile, error) {
 // Fetches public information such as a user's public plurks and basic information. Fetches also if the current user is following the user, are friends with or is a fan.
 // userIdOrNickName must be int64 for user_id or string for nick_name
 func (u *APIProfile) GetPublicProfile(userIdOrNickName any) (*Profile, error) {
-	body := map[string]string{}
+	body := map[string]string{
+		"include_plurks": "false",
+	}
 	userId := func(num any) (int64, bool) {
 		switch v := num.(type) {
 		case int64:
