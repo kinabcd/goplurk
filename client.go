@@ -79,12 +79,12 @@ func (c *EngineImpl) CallAPI(_url string, opt map[string]string) ([]byte, error)
 	c.oauthClient.SignForm(c.Credentials, "POST", apiURL, param)
 	res, err := http.PostForm(apiURL, url.Values(param))
 	if err != nil {
-		return nil, fmt.Errorf("failed to call API: %s, %s, %v", apiURL, fmt.Sprint(param), err)
+		return nil, fmt.Errorf("failed to call API: %s, %s, %w", apiURL, fmt.Sprint(param), err)
 	}
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get response: %v", err)
+		return nil, fmt.Errorf("failed to get response: %w", err)
 	}
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("%s", string(body))
@@ -95,7 +95,7 @@ func (c *EngineImpl) CallAPIUnmarshal(_url string, opt map[string]string, v any)
 	if bytes, err := c.CallAPI(_url, opt); err != nil {
 		return err
 	} else if err := json.Unmarshal(bytes, v); err != nil {
-		return fmt.Errorf("failed to unmarshal: %v, %s", err, string(bytes))
+		return fmt.Errorf("failed to unmarshal: %w, %s", err, string(bytes))
 	} else {
 		return nil
 	}
@@ -111,7 +111,7 @@ func NewOAuthRequest(consumerToken string, consumerSecret string) (*OAuthRequest
 	oauthClient := newOAuthClient(consumerToken, consumerSecret)
 	requestToken, err := oauthClient.RequestTemporaryCredentials(http.DefaultClient, "", nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to request temporary credentials: %v", err)
+		return nil, fmt.Errorf("failed to request temporary credentials: %w", err)
 	}
 	url := oauthClient.AuthorizationURL(requestToken, nil)
 
@@ -125,7 +125,7 @@ func NewOAuthRequest(consumerToken string, consumerSecret string) (*OAuthRequest
 func (c *OAuthRequest) SendPin(pin string) (*Client, string, string, error) {
 	credentials, _, err := c.client.RequestToken(http.DefaultClient, c.temporaryCredentials, pin)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("failed to request accessToken: %v", err)
+		return nil, "", "", fmt.Errorf("failed to request accessToken: %w", err)
 	}
 	return newClient(c.client, credentials), credentials.Token, credentials.Secret, nil
 }

@@ -159,7 +159,7 @@ func resolveComet(bytes []byte) (*comet, error) {
 	bytes = []byte(strings.TrimSuffix(strings.TrimPrefix(string(bytes), "CometChannel.scriptCallback("), ");"))
 	res := &comet{}
 	if err := json.Unmarshal(bytes, res); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve comet: %w", err)
 	}
 	return res, nil
 }
@@ -172,7 +172,8 @@ func resolveEvent(bytes json.RawMessage, listener *UserChannelListener) {
 		Type string `json:"type"`
 	}{}
 	if err := json.Unmarshal(bytes, pass1); err != nil {
-		listener.Err(err)
+		listener.Err(fmt.Errorf("failed to resolve event: %w", err))
+		return
 	}
 	if listener.EventHandlers != nil {
 		for _, handler := range listener.EventHandlers {
